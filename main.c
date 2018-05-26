@@ -62,7 +62,7 @@ int WINAPI WinMain(HINSTANCE dieseInstanz, HINSTANCE vorherigeInstanz, LPSTR lps
 		return 0;
 	}
 	
-	//Beim erst-aufruf initialiseren
+	//Beim Erstaufruf Uhrzeit initialiseren
 	GetLocalTime(&lt);
 	lt_hour = lt.wHour, lt_min = lt.wMinute, lt_sec = lt.wSecond;
 
@@ -84,30 +84,73 @@ int WINAPI WinMain(HINSTANCE dieseInstanz, HINSTANCE vorherigeInstanz, LPSTR lps
  //-----------------Callback Funktion des Hauptfensters ------------------------
 LRESULT CALLBACK Fensterfunktion(HWND Fenster, UINT nachricht, WPARAM wParam, LPARAM lParam)  {
 
-	HDC hdc;
-	PAINTSTRUCT ps;
-	int heigth=720, width= 720;
+	HDC hdc;	//Handle zum zeichnen
+	PAINTSTRUCT ps;	//enthaelt infos ueber das zu malende Fenster sowie paint messages(BeginPaint() usw.)
+	int heigth=720, width= 720;	//Breite u. Laenge des Fenster
 	double pi = 3.14;
 	//SYSTEMTIME lt = { 0 };
 	switch (nachricht)
 	{
-	case WM_PAINT:
-	{		
-		
-		
-		//Systemzeit wurde ausgewaehlt
-		if (radioChecked == 110) {
-			/*lt_hour = 2;
-			lt_min = 3;
-			lt_sec = 4;
-			*/
+	
+	//initialisiere einmalig Menue waehrend Applikation startet
+	case WM_CREATE:
+	{
+		HMENU hMenu, hSubMenu;
+		HICON hIcon, hIconSm;
 
+		//Menu erzeugen
+		hMenu = CreateMenu();
+
+		hSubMenu = CreatePopupMenu();
+		AppendMenu(hSubMenu, MF_STRING, ID_UHRZEIT, TEXT("&Uhrzeit waehlen"));
+		AppendMenu(hSubMenu, MF_STRING, ID_DATEI_BEENDEN, TEXT("&Beenden"));
+		AppendMenu(hMenu, MF_STRING | MF_POPUP, (UINT)hSubMenu, TEXT("&Datei"));
+		
+		SetMenu(Fenster, hMenu);	//erzeugtes Menu dem aktuellen Fenster uebergeben
+		
+		/* Timer setzen. Parameter:
+			Fenster -> Timer wird an aktuelles Fenster gebunden
+			ID_TIMER -> ID fuer Timer setzen
+			1000 ->	Timer soll alle 1000ms reagieren
+			NULL -> Eigene Funktion zur Reaktion kann eingebunden werden, hier NULL u. sendet WM_TIMER ans System
+		*/
+		SetTimer(Fenster, ID_TIMER, 1000, NULL);
+		break;
+	}
+
+	case WM_PAINT:
+	{						
+		//Systemzeit wurde ausgewaehlt im Dialogfenster
+		if (radioChecked == 110) {
 			GetLocalTime(&lt);
 			lt_hour = lt.wHour, lt_min = lt.wMinute, lt_sec = lt.wSecond;
 		}
 
-		hdc = BeginPaint(Fenster, &ps);
-		//MoveToEx(hdc, width/2, heigth/2, NULL);
+		/* Eigene Uhrzeit wurde ausgewaehlt im Dialogfenster
+		/* u.  wenn eigene UHrzeit gewaehlt wurde, soll Uhr nach dieser Uhrzeit weiterlaufen
+		/* Jeweils fuer Sekunde, Minute, Stunde */		
+		if (radioChecked == 111) {
+			lt_sec++;
+			if (lt_sec == 60) {
+				lt_sec = 0;
+				lt_min++;
+			}
+
+			if (lt_min == 60) {
+				lt_min = 0;
+				lt_hour++;
+			}
+
+			if (lt_hour % 12 == 0) {
+				lt_hour = 0;
+			}
+		}
+
+		/* return HDC, repraesentiert das HWND Fenster
+		/*	alle Zeichenoperation auf hdc werden sofort im Bildschirm angezeigt 
+		 */
+		hdc = BeginPaint(Fenster, &ps);	
+				
 		HPEN hPenOld;
 		HPEN hLinePen;
 		COLORREF qLineColor;
@@ -227,50 +270,49 @@ LRESULT CALLBACK Fensterfunktion(HWND Fenster, UINT nachricht, WPARAM wParam, LP
 
 	//Menuauswahl
 	case WM_COMMAND: 
+		//wParam bezieht sich hier auf die Menu-IDs die durch Nutzerauswahl hierher gesendet werden
 		switch (wParam) {
-			//IDs siehe resource.h
+			//case IDs definiert in resource.h
+			
+			//1000 -> Benutzer klickt auf Beenden im Menuepunkt
 			case 1000:	//Beenden			
 				PostQuitMessage(0);
 				return 0;
 					
+			//10 -> Benutzer klickt auf Uhrzeit waehlen im Menupunkt
 			case 10:	//Uhrzeit waehlen
-				DialogBox(Instanz, MAKEINTRESOURCE(IDD_DIALOGCLOCK), Fenster, Dialogfunktion);
 
-				//TODO: hier DialogFenster oeffnen
+				//Oeffnet Dialogbox zum auswaehlen der Uhrzeit
+				/* Parameter die Uebergeben werden: 
+						Instanz -> aktuelle Instanz dieser Applik.
+						MAKEINTRESOURCE(..) -> cast int ID zu LPCTSTR
+							- ID, definiert in resource.h, bezieht sich auf Dialogfenster, welches in .rc implementiert wurde
+						Fenster -> Handle des parent Fenster
+						Dialogfuntion -> Funktion, auf welcher sich der Dialog bezieht */				 
+				DialogBox(Instanz, MAKEINTRESOURCE(IDD_DIALOGCLOCK), Fenster, Dialogfunktion);				
 				return 0;
 				//break;
 		}
 		break;
 		
-		//initialisiere Menue
-	case WM_CREATE:
-	{
-		HMENU hMenu, hSubMenu;
-		HICON hIcon, hIconSm;
 
-		hMenu = CreateMenu();
-
-		hSubMenu = CreatePopupMenu();
-		AppendMenu(hSubMenu, MF_STRING, ID_UHRZEIT, TEXT("&Uhrzeit waehlen"));
-		AppendMenu(hSubMenu, MF_STRING, ID_DATEI_BEENDEN, TEXT("&Beenden"));
-		AppendMenu(hMenu, MF_STRING | MF_POPUP, (UINT)hSubMenu, TEXT("&Datei"));
-
-		SetMenu(Fenster, hMenu);
-		SetTimer(Fenster, ID_TIMER, 1000, NULL);
-		break;
-	}
 	case WM_TIMER:
 		InvalidateRect(Fenster, NULL, TRUE);
 		//return 0;
 		break;
 
+	//wenn Message kommt die Applikation zu schließen, Ressourcen freiegeben bzw. Timer ebenfalls beenden
 	case WM_DESTROY:
 		KillTimer(Fenster, ID_TIMER);
 		PostQuitMessage(0);
 		break;
+
+		/* wenn Benutzer auf 'X' im Fenster oben rechts, ALT-F4 oder schliesen in Fenstermenu klickt,
+		/* und Nutzer bittet zur Beendigung der Applikation
+		/* Timer und Fenster werden geschlossen */
 	case WM_CLOSE:
 		KillTimer(Fenster, ID_TIMER);
-		DestroyWindow(Fenster);
+		DestroyWindow(Fenster);	//Methode ruft WM_DESTROY message ans System
 		break;
 	default:
 		return DefWindowProc(Fenster, nachricht, wParam, lParam);
@@ -281,17 +323,34 @@ LRESULT CALLBACK Fensterfunktion(HWND Fenster, UINT nachricht, WPARAM wParam, LP
 BOOL FAR PASCAL Dialogfunktion(HWND dialogFenster, UINT nachricht, WPARAM wParam, LPARAM lParam) {
 
 	switch (nachricht) {
+	
+	//Dialogfenster wird initialisierst
 	case WM_INITDIALOG:
 		CheckRadioButton(dialogFenster, 110, 111, radioChecked);
+		if (SetDlgItemInt(dialogFenster, IDC_HOUR, lt_hour, 5) == 0) {
+			lt_hour = 0;
+		}
+		if (SetDlgItemInt(dialogFenster, IDC_MIN, lt_min, 5) == 0) {
+			lt_min = 0;
+		}
+		if (SetDlgItemInt(dialogFenster, IDC_SEC, lt_sec, 5) == 0) {
+			lt_sec = 0;
+		}
 		return TRUE;
 
+	//Benutzer interagiert mit (Radio-)Buttons
 	case WM_COMMAND:
 		switch (wParam) {
+
+		//Radiobuttons
 		case 110: radioChecked = 110;	//Systemzeit
 			return TRUE;
 		case 111: radioChecked = 111;	//Eigene Uhrzeit
 			return TRUE;
-		case IDOK: 
+
+		//Benutzer klickt OK-Button -> Aenderungen speichern
+		case IDOK:	
+			//gueltig nur Zahlen in EditText akzeptieren, bei Fehlerfall Wert auf 0 setzen
 			if (GetDlgItemInt(dialogFenster, IDC_HOUR, NULL, 5) != 0) {
 				lt_hour = GetDlgItemInt(dialogFenster, IDC_HOUR, NULL, 5);
 			}
@@ -309,9 +368,9 @@ BOOL FAR PASCAL Dialogfunktion(HWND dialogFenster, UINT nachricht, WPARAM wParam
 			}
 			else {
 				lt_sec = 0;
-			}
-			//lt_static.wHour = hour_Puffer;
+			}			
 
+		//Benutzer klickt Abbrechen-Button -> Aenderungen nicht speichern u. Dialog schliesen
 		case IDCANCEL:
 			EndDialog(dialogFenster, 0);
 			return TRUE;
