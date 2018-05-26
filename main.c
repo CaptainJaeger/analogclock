@@ -9,6 +9,9 @@ const char g_szClassName[] = "analogClockClass";
 
 const int ID_TIMER = 1;
 static int radioChecked = 110;
+
+//tempRadioCheck -> speicher radioButton nur wenn Nutzer auf OK klickt, bis dahin temporär speichern
+int tempRadioCheck;
 static SYSTEMTIME lt = { 0 };
 static int lt_hour = 0, lt_min = 0, lt_sec = 0;
 
@@ -288,7 +291,8 @@ LRESULT CALLBACK Fensterfunktion(HWND Fenster, UINT nachricht, WPARAM wParam, LP
 						MAKEINTRESOURCE(..) -> cast int ID zu LPCTSTR
 							- ID, definiert in resource.h, bezieht sich auf Dialogfenster, welches in .rc implementiert wurde
 						Fenster -> Handle des parent Fenster
-						Dialogfuntion -> Funktion, auf welcher sich der Dialog bezieht */				 
+						Dialogfuntion -> Funktion, auf welcher sich der Dialog bezieht */
+				tempRadioCheck = radioChecked;
 				DialogBox(Instanz, MAKEINTRESOURCE(IDD_DIALOGCLOCK), Fenster, Dialogfunktion);				
 				return 0;
 				//break;
@@ -320,13 +324,13 @@ LRESULT CALLBACK Fensterfunktion(HWND Fenster, UINT nachricht, WPARAM wParam, LP
 	return 0;
 }
 
-BOOL FAR PASCAL Dialogfunktion(HWND dialogFenster, UINT nachricht, WPARAM wParam, LPARAM lParam) {
+BOOL FAR PASCAL Dialogfunktion(HWND dialogFenster, UINT nachricht, WPARAM wParam, LPARAM lParam) {	
 
 	switch (nachricht) {
 	
 	//Dialogfenster wird initialisierst
 	case WM_INITDIALOG:
-		CheckRadioButton(dialogFenster, 110, 111, radioChecked);
+		CheckRadioButton(dialogFenster, 110, 111, tempRadioCheck);
 		if (SetDlgItemInt(dialogFenster, IDC_HOUR, lt_hour, 5) == 0) {
 			lt_hour = 0;
 		}
@@ -343,32 +347,42 @@ BOOL FAR PASCAL Dialogfunktion(HWND dialogFenster, UINT nachricht, WPARAM wParam
 		switch (wParam) {
 
 		//Radiobuttons
-		case 110: radioChecked = 110;	//Systemzeit
+		case 110: 
+			tempRadioCheck = 110;
+			//radioChecked = 110;	//Systemzeit
 			return TRUE;
-		case 111: radioChecked = 111;	//Eigene Uhrzeit
+
+		case 111: 
+			tempRadioCheck = 111;
+			//radioChecked = 111;	//Eigene Uhrzeit
 			return TRUE;
 
 		//Benutzer klickt OK-Button -> Aenderungen speichern
 		case IDOK:	
-			//gueltig nur Zahlen in EditText akzeptieren, bei Fehlerfall Wert auf 0 setzen
-			if (GetDlgItemInt(dialogFenster, IDC_HOUR, NULL, 5) != 0) {
-				lt_hour = GetDlgItemInt(dialogFenster, IDC_HOUR, NULL, 5);
+			radioChecked = tempRadioCheck;
+			//Speichern nur wenn radioButton geklickt wurde
+			if (radioChecked == 111) {
+
+				//gueltig nur Zahlen in EditText akzeptieren, bei Fehlerfall Wert auf 0 setzen
+				if (GetDlgItemInt(dialogFenster, IDC_HOUR, NULL, 5) != 0) {
+					lt_hour = GetDlgItemInt(dialogFenster, IDC_HOUR, NULL, 5);
+				}
+				else {
+					lt_hour = 0;
+				}
+				if (GetDlgItemInt(dialogFenster, IDC_MIN, NULL, 5) != 0) {
+					lt_min = GetDlgItemInt(dialogFenster, IDC_MIN, NULL, 5);
+				}
+				else {
+					lt_min = 0;
+				}
+				if (GetDlgItemInt(dialogFenster, IDC_SEC, NULL, 5) != 0) {
+					lt_sec = GetDlgItemInt(dialogFenster, IDC_SEC, NULL, 5);
+				}
+				else {
+					lt_sec = 0;
+				}
 			}
-			else {
-				lt_hour = 0;
-			}
-			if (GetDlgItemInt(dialogFenster, IDC_MIN, NULL, 5) != 0) {
-				lt_min = GetDlgItemInt(dialogFenster, IDC_MIN, NULL, 5);
-			}
-			else {
-				lt_min = 0;
-			}
-			if (GetDlgItemInt(dialogFenster, IDC_SEC, NULL, 5) != 0) {
-				lt_sec = GetDlgItemInt(dialogFenster, IDC_SEC, NULL, 5);
-			}
-			else {
-				lt_sec = 0;
-			}			
 
 		//Benutzer klickt Abbrechen-Button -> Aenderungen nicht speichern u. Dialog schliesen
 		case IDCANCEL:
